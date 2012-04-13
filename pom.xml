@@ -4,7 +4,7 @@
 
     <groupId>org.neo4j</groupId>
     <artifactId>streaming-cypher-extension</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.7.M03</version>
     <packaging>jar</packaging>
 
     <name>Neo4j Server Extension - Streaming Cypher</name>
