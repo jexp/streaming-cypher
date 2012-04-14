@@ -43,7 +43,9 @@ public class JsonFormatTest {
         List<List<Map<String,Object>>> rows= (List<List<Map<String, Object>>>) result.get("rows");
         final List<Map<String, Object>> row = rows.get(0);
         Map<String,Object> cell = row.get(0);
-        assertEquals((int) gdb.getReferenceNode().getId(), ((Map)cell.get("Node")).get("id"));
+        final Map node = (Map) cell.get("Node");
+        assertEquals((int) gdb.getReferenceNode().getId(), node.get("id"));
+        assertEquals("refNode", ((Map)node.get("data")).get("name"));
     }
 
     @Test

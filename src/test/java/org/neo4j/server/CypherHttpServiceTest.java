@@ -72,7 +72,8 @@ public class CypherHttpServiceTest {
         String query = "start n=node(*) match p=n-[r]-m return n,r,m,p";
         final String uri = createQueryURI();
         System.out.println("uri = " + uri);
-        ClientResponse response = Client.create().resource(uri).header("Accept","application/json;compat=true").post(ClientResponse.class, new ObjectMapper().writeValueAsString(MapUtil.map("query", query)));
+        ClientResponse response = Client.create().resource(uri).header("Accept","application/json;mode=compat" +
+                "").post(ClientResponse.class, new ObjectMapper().writeValueAsString(MapUtil.map("query", query)));
         assertEquals(ClientResponse.Status.OK.getStatusCode(), response.getStatus());
         final String result = response.getEntity(String.class);
         System.out.println(result);
@@ -87,6 +88,17 @@ public class CypherHttpServiceTest {
     }
 
 
+    @Test
+    public void queryPrettyPrint() throws Exception {
+        String query = "start n=node(0) return n";
+        ClientResponse response = Client.create().resource(createQueryURI()).header("Accept","application/json;format=pretty")
+                .post(ClientResponse.class, new ObjectMapper().writeValueAsString(MapUtil.map("query", query)));
+        assertEquals(ClientResponse.Status.OK.getStatusCode(), response.getStatus());
+        final String result = response.getEntity(String.class);
+        System.out.println(result);
+        assertTrue(result.contains("\n "));
+        response.close();
+    }
     private String createQueryURI() {
         return neoServer.baseUri().toString() + CONTEXT_PATH;
     }

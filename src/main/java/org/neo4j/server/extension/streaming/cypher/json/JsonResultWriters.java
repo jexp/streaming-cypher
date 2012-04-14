@@ -32,13 +32,20 @@ public class JsonResultWriters {
 
     class JsonWriter implements JsonResultWriter {
         protected OutputStream output;
+        private boolean pretty;
 
         JsonWriter(OutputStream output) {
             this.output = output;
         }
 
+        @Override
+        public JsonResultWriter usePrettyPrinter() {
+            this.pretty=true;
+            return this;
+        }
+
         public void toJson(ExecutionResult result, long start) throws IOException {
-            JsonGenerator g = jsonFactory.createJsonGenerator(output);
+            JsonGenerator g = createGenerator();
             g.writeStartObject();
             final List<String> columns = result.columns();
             writeColumns(g, columns);
@@ -47,6 +54,14 @@ public class JsonResultWriters {
             writeTime(g, start);
             g.writeEndObject();
             g.close();
+        }
+
+        protected JsonGenerator createGenerator() throws IOException {
+            JsonGenerator g = jsonFactory.createJsonGenerator(output);
+            if (pretty) {
+                g.useDefaultPrettyPrinter();
+            }
+            return g;
         }
 
         protected void writeTime(JsonGenerator g, long start) throws IOException {

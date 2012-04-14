@@ -58,8 +58,9 @@ public class CypherHttpService {
     }
 
     private JsonResultWriter writerFor(String accept, OutputStream output, final URI uri) {
-        if (accept.contains(";compat")) return writers.writeCompatTo(output, uri.toString());
-        return writers.writeTo(output);
+        final JsonResultWriter writer = accept.contains(";mode=compat") ? writers.writeCompatTo(output, uri.toString()) : writers.writeTo(output);
+        if (accept.contains(";format=pretty")) writer.usePrettyPrinter();
+        return writer;
     }
 
     private Map<String, Object> params(String body) throws IOException {

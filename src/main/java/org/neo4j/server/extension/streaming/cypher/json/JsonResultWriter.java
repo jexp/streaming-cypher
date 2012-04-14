@@ -10,4 +10,6 @@ import java.io.IOException;
 */
 public interface JsonResultWriter {
     void toJson(ExecutionResult result, long start) throws IOException;
+
+    JsonResultWriter usePrettyPrinter();
 }
