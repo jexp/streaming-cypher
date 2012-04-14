@@ -8,6 +8,10 @@ Then you can issue
 
 to query the graph and stream the results.
 
+Note, for rendering the existing format of the Neo4j-REST API (without the additional discoverable URLs) use:
+
+    curl -d'{"query":"start n=node(*) return n"}' -H accept:application/json;compat=true -H content-type:application/json http://localhost:7474/streaming/cypher
+
 A sample Parser/Client implementation is in org.neo4j.server.extension.streaming.cypher.CypherResultReader
 
 The format is for a query like:

@@ -30,7 +30,7 @@ public class LocalTestServer {
     private final String hostname;
 
     public LocalTestServer() {
-        this("localhost", 7473);
+        this("localhost", 7470);
     }
 
     public LocalTestServer(String hostname, int port) {
@@ -85,6 +85,7 @@ public class LocalTestServer {
             System.err.println("Error stopping server: " + e.getMessage());
         }
         neoServer = null;
+
     }
 
     public int getPort() {

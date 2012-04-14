@@ -66,6 +66,26 @@ public class CypherHttpServiceTest {
         assertTrue(((Map) row.get(1).get("Relationship")).get("type").toString().startsWith("TEST_"));
     }
 
+    @Test
+    public void queryAllNodesCompatible() throws Exception {
+        createData(getGraphDb(), FEW_NODES);
+        String query = "start n=node(*) match p=n-[r]-m return n,r,m,p";
+        final String uri = createQueryURI();
+        System.out.println("uri = " + uri);
+        ClientResponse response = Client.create().resource(uri).header("Accept","application/json;compat=true").post(ClientResponse.class, new ObjectMapper().writeValueAsString(MapUtil.map("query", query)));
+        assertEquals(ClientResponse.Status.OK.getStatusCode(), response.getStatus());
+        final String result = response.getEntity(String.class);
+        System.out.println(result);
+        response.close();
+        final Map data = new ObjectMapper().readValue(result, Map.class);
+        assertEquals(false, data.containsKey("count"));
+        assertEquals(false, data.containsKey("time"));
+        assertEquals(asList("n","r","m","p"), data.get("columns"));
+        List<List<Object>> rows= (List<List<Object>>) data.get("data");
+        final List<Object> row = rows.get(0);
+        assertTrue(((Map) row.get(1)).get("type").toString().startsWith("TEST_"));
+    }
+
 
     private String createQueryURI() {
         return neoServer.baseUri().toString() + CONTEXT_PATH;

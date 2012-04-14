@@ -4,16 +4,16 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.neo4j.cypher.javacompat.ExecutionResult;
 import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.MapUtil;
+import org.neo4j.server.extension.streaming.cypher.json.JsonResultWriter;
+import org.neo4j.server.extension.streaming.cypher.json.JsonResultWriters;
 import org.neo4j.test.ImpermanentGraphDatabase;
 
-import java.io.*;
-import java.util.Iterator;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -43,7 +43,7 @@ public class CypherServiceTest {
     }
 
     @Test
-    public void testFormat() throws IOException {
+    public void testCompactFormat() throws IOException {
         final Node refNode = gdb.getReferenceNode();
         refNode.setProperty("name", 42);
         final Node n2 = gdb.createNode();
@@ -53,11 +53,11 @@ public class CypherServiceTest {
         final CypherService service = new CypherService(gdb);
         final String baseQuery = "start n=node(*) match p=n-[r]-m return ";
         final String simpleQuery = baseQuery + " NODES(p) as path";
-        query(service, simpleQuery);
-        query(service, simpleQuery);
+        query(service, simpleQuery, null);
+        query(service, simpleQuery, null);
         final String fullyQuery = baseQuery + " n as first,r as rel,m as second,m.name? as name,r.foo? as foo,ID(n) as id, p as path , NODES(p) as all";
-        query(service, fullyQuery);
-        final Map result = (Map) query(service, fullyQuery);
+        query(service, fullyQuery, null);
+        final Map result = (Map) query(service, fullyQuery, null);
         final List<String> columns = asList("first", "rel", "second", "name", "foo", "id", "path", "all");
         assertEquals(columns,result.get("columns"));
         assertEquals(2,result.get("count"));
@@ -70,7 +70,45 @@ public class CypherServiceTest {
         assertEquals(null, extract(columns, row, "foo", Object.class));
         assertEquals("n2", extract(columns, row, "name",String.class));
         assertEquals(1, extract(columns, row, "path",Map.class).get("length"));
-        assertEquals((int)refNode.getId(), ((Map)extract(columns, row, "all",List.class).get(0)).get("id"));
+        assertEquals((int) refNode.getId(), ((Map) extract(columns, row, "all", List.class).get(0)).get("id"));
+    }
+
+    @Test
+    public void testCompatibleFormat() throws IOException {
+        final String uri = "http://localhost:7470/db/data/";
+        final Node refNode = gdb.getReferenceNode();
+        refNode.setProperty("name", 42);
+        final Node n2 = gdb.createNode();
+        n2.setProperty("name", "n2");
+        final Relationship rel = refNode.createRelationshipTo(n2, DynamicRelationshipType.withName("knows"));
+        rel.setProperty("name", "rel1");
+        final CypherService service = new CypherService(gdb);
+        final String baseQuery = "start n=node(*) match p=n-[r]-m return ";
+        final String simpleQuery = baseQuery + " NODES(p) as path";
+        query(service, simpleQuery, uri);
+        query(service, simpleQuery, uri);
+        final String fullyQuery = baseQuery + " n as first,r as rel,m as second,m.name? as name,r.foo? as foo,ID(n) as id, p as path , NODES(p) as all";
+        query(service, fullyQuery, uri);
+        final Map result = (Map) query(service, fullyQuery, uri);
+        final List<String> columns = asList("first", "rel", "second", "name", "foo", "id", "path", "all");
+        assertEquals(columns,result.get("columns"));
+        assertEquals(false,result.containsKey("count"));
+        List<List<Object>> rows= (List<List<Object>>) result.get("data");
+        final List<Object> row = rows.get(0);
+        final String refNodeUri = uri + "node/" + refNode.getId();
+        final String node2NodeUri = uri + "node/" + n2.getId();
+        final String relNodeUri = uri + "relationship/" + rel.getId();
+        assertEquals(refNodeUri, extract2(columns, row, "first", Map.class).get("self"));
+        assertEquals(42, ((Map)extract2(columns, row, "first", Map.class).get("data")).get("name"));
+        assertEquals(node2NodeUri, extract2(columns, row, "second", Map.class).get("self"));
+        assertEquals(relNodeUri, extract2(columns, row, "rel", Map.class).get("self"));
+        assertEquals(0, extract2(columns, row, "id", Integer.class).intValue());
+        assertEquals(null, extract2(columns, row, "foo", Object.class));
+        assertEquals("n2", extract2(columns, row, "name", String.class));
+        assertEquals(1, extract2(columns, row, "path", Map.class).get("length"));
+        assertEquals(refNodeUri, extract2(columns, row, "path", Map.class).get("start"));
+        assertEquals(node2NodeUri, extract2(columns, row, "path", Map.class).get("end"));
+        assertEquals(refNodeUri, ((Map) extract2(columns, row, "all", List.class).get(0)).get("self"));
     }
 
     private <T> T extract(List<String> columns, List<Map<String, Object>> row, final String column, Class<T> type) {
@@ -78,114 +116,17 @@ public class CypherServiceTest {
         final Map<String, Object> cell = row.get(columnIndex);
         return (T)cell.values().iterator().next();
     }
+    private <T> T extract2(List<String> columns, List<Object> row, final String column, Class<T> type) {
+        final int columnIndex = columns.indexOf(column);
+        return (T) row.get(columnIndex);
+    }
 
-    private Object query(CypherService service, final String query) throws IOException {
+    private Object query(CypherService service, final String query, String uri) throws IOException {
         System.out.println(query);
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        service.execute(query, null, baos); // n as first,r as rel,m as second,m.name? as name,ID(n) as id, , NODES(p) as nodes
+        final JsonResultWriter writer = uri == null ? new JsonResultWriters().writeTo(baos) : new JsonResultWriters().writeCompatTo(baos, uri);
+        service.execute(query, null, writer); // n as first,r as rel,m as second,m.name? as name,ID(n) as id, , NODES(p) as nodes
         System.out.println(baos.toString("UTF-8").replaceAll("([}\\]],)", "$1\n"));
         return new ObjectMapper().readValue(baos.toString(), Object.class);
-    }
-
-
-    @Test
-    public void testReadStreamingOneMillionNodes() throws IOException, InterruptedException {
-        final Node refNode = gdb.getReferenceNode();
-        refNode.setProperty("name", "Peter");
-        refNode.setProperty("age", 39);
-
-        final PipedInputStream inputStream = new PipedInputStream(10 * 1024 * 1024);
-        final Thread thread = new Thread() {
-            public void run() {
-                try {
-                    ExecutionResult result = new ExecutionResultStub(asList("node"), MapUtil.map("node", gdb.getReferenceNode()), MILLION);
-                    final PipedOutputStream stream = new PipedOutputStream(inputStream);
-                    new CypherService(gdb).toJson(result, System.currentTimeMillis(), stream);
-                } catch (IOException ioe) {
-                    throw new RuntimeException(ioe);
-                }
-            }
-        };
-        thread.start();
-        final long start = System.currentTimeMillis();
-        new CypherResultReader().readCypherResults(inputStream, new CypherResultReader.ResultCallback());
-        System.out.println("Reading streaming results took " + (System.currentTimeMillis() - start) + " ms.");
-        thread.join();
-    }
-
-    @Test
-    public void testStreamOneMillionNodes() throws IOException {
-        final Node refNode = gdb.getReferenceNode();
-        refNode.setProperty("name", "Peter");
-        refNode.setProperty("age", 39);
-        ExecutionResult result = new ExecutionResultStub(asList("node"), MapUtil.map("node", gdb.getReferenceNode()), MILLION);
-        final CountingOutputStream stream = new CountingOutputStream();
-        final long start = System.currentTimeMillis();
-        new CypherService(gdb).toJson(result, start, stream);
-        final long end = System.currentTimeMillis();
-        System.out.println("Streaming " + stream.getCount() + " bytes took " + (end - start) + " ms.");
-    }
-
-    private static class ConstantIterator<T> implements Iterator<T> {
-        int current;
-        private final T data;
-        int count;
-
-        public ConstantIterator(T data, int count) {
-            this.data = data;
-            this.count = count;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return current < count;
-        }
-
-        @Override
-        public T next() {
-            current++;
-            return data;
-        }
-
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException();
-        }
-    }
-
-    private static class CountingOutputStream extends OutputStream {
-        private int count;
-
-        @Override
-        public void write(int b) throws IOException {
-            count++;
-        }
-
-        public int getCount() {
-            return count;
-        }
-    }
-
-    private class ExecutionResultStub extends ExecutionResult {
-        final List<String> columns;
-        final Map<String, Object> row;
-        private final int count;
-
-        public ExecutionResultStub(final List<String> columns, final Map<String, Object> row, final int count) {
-            super(null);
-            this.columns = columns;
-            this.row = row;
-            this.count = count;
-        }
-
-        @Override
-        public Iterator<Map<String, Object>> iterator() {
-            return new ConstantIterator<Map<String, Object>>(row, count);
-        }
-
-        @Override
-        public List<String> columns() {
-            return columns;
-        }
     }
 }

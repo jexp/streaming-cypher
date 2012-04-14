@@ -7,40 +7,40 @@ package org.neo4j.server.extension.streaming.cypher;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.neo4j.server.database.Database;
+import org.neo4j.server.extension.streaming.cypher.json.JsonResultWriter;
+import org.neo4j.server.extension.streaming.cypher.json.JsonResultWriters;
 
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.*;
+import javax.ws.rs.core.*;
 import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.Map;
 
 @Path("/cypher")
 public class CypherHttpService {
 
     private final CypherService service;
+    private final JsonResultWriters writers;
 
 
     public CypherHttpService(@Context Database database) {
         service = new CypherService(database.graph);
+        writers = new JsonResultWriters();
 
     }
 
     @POST
     @Produces(MediaType.APPLICATION_JSON)
-    public Response query(final String body) { // todo params
+    public Response query(final @HeaderParam("Accept") String accept,  @Context final UriInfo uriInfo, final String body) {
         try {
             final Map<String, Object> params = params(body);
             StreamingOutput stream = new StreamingOutput() {
                 public void write(OutputStream output) throws IOException, WebApplicationException {
                     try {
-                        service.execute((String) params.get("query"), (Map<String, Object>) params.get("params"), output);
+                        JsonResultWriter writer = writerFor(accept, output, neoServerBaseUri(uriInfo));
+                        service.execute((String) params.get("query"), (Map<String, Object>) params.get("params"), writer);
                     } catch (Exception e) {
                         throw new WebApplicationException(e);
                     }
@@ -51,6 +51,15 @@ public class CypherHttpService {
             e.printStackTrace();
             return Response.status(Status.INTERNAL_SERVER_ERROR).entity(e.getMessage()).build();
         }
+    }
+
+    private URI neoServerBaseUri(UriInfo uriInfo) {
+        return uriInfo.getBaseUriBuilder().replacePath("/db/data/").build(null);
+    }
+
+    private JsonResultWriter writerFor(String accept, OutputStream output, final URI uri) {
+        if (accept.contains(";compat")) return writers.writeCompatTo(output, uri.toString());
+        return writers.writeTo(output);
     }
 
     private Map<String, Object> params(String body) throws IOException {
