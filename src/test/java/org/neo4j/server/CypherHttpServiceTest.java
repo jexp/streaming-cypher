@@ -48,7 +48,7 @@ public class CypherHttpServiceTest {
     @Test
     public void queryAllNodes() throws Exception {
         createData(getGraphDb(), FEW_NODES);
-        String query = "start n=node(*) match p=n-[r]-m return n,r,m,p";
+        String query = "start n=node(1) match p=n-[r]-m return n,r,m,p";
         final String uri = createQueryURI();
         System.out.println("uri = " + uri);
         ClientResponse response = Client.create().resource(uri).post(ClientResponse.class,new ObjectMapper().writeValueAsString(MapUtil.map("query",query)));
@@ -69,7 +69,7 @@ public class CypherHttpServiceTest {
     @Test
     public void queryAllNodesCompatible() throws Exception {
         createData(getGraphDb(), FEW_NODES);
-        String query = "start n=node(*) match p=n-[r]-m return n,r,m,p";
+        String query = "start n=node(1) match p=n-[r]-m return n,r,m,p";
         final String uri = createQueryURI();
         System.out.println("uri = " + uri);
         ClientResponse response = Client.create().resource(uri).header("Accept","application/json;compat=true").post(ClientResponse.class, new ObjectMapper().writeValueAsString(MapUtil.map("query", query)));

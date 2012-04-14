@@ -51,7 +51,7 @@ public class CypherServiceTest {
         final Relationship rel = refNode.createRelationshipTo(n2, DynamicRelationshipType.withName("knows"));
         rel.setProperty("name", "rel1");
         final CypherService service = new CypherService(gdb);
-        final String baseQuery = "start n=node(*) match p=n-[r]-m return ";
+        final String baseQuery = "start n=node(0,1) match p=n-[r]-m return ";
         final String simpleQuery = baseQuery + " NODES(p) as path";
         query(service, simpleQuery, null);
         query(service, simpleQuery, null);
@@ -83,7 +83,7 @@ public class CypherServiceTest {
         final Relationship rel = refNode.createRelationshipTo(n2, DynamicRelationshipType.withName("knows"));
         rel.setProperty("name", "rel1");
         final CypherService service = new CypherService(gdb);
-        final String baseQuery = "start n=node(*) match p=n-[r]-m return ";
+        final String baseQuery = "start n=node(0,1) match p=n-[r]-m return ";
         final String simpleQuery = baseQuery + " NODES(p) as path";
         query(service, simpleQuery, uri);
         query(service, simpleQuery, uri);

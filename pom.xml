@@ -4,7 +4,7 @@
 
     <groupId>org.neo4j</groupId>
     <artifactId>streaming-cypher-extension</artifactId>
-    <version>1.7.M03</version>
+    <version>1.6.2</version>
     <packaging>jar</packaging>
 
     <name>Neo4j Server Extension - Streaming Cypher</name>
@@ -13,7 +13,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <slf4j.version>1.6.1</slf4j.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <neo4j.version>1.7.M03</neo4j.version>
+        <neo4j.version>1.6.2</neo4j.version>
         <com.sun.jersey.version>1.4</com.sun.jersey.version>
     </properties>
 
