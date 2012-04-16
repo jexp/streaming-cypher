@@ -28,51 +28,77 @@ public class JsonResultWriters {
 
     JsonResultWriters(final JsonFactory jsonFactory) {
         this.jsonFactory = jsonFactory;
+        this.jsonFactory.enable(JsonGenerator.Feature.FLUSH_PASSED_TO_STREAM);
+    }
+
+    private static class NullJsonResultWriter implements JsonResultWriter {
+        public void writeResult(ExecutionResult result, long start) throws IOException { }
+
+        public JsonResultWriter usePrettyPrinter() { return this; }
+
+        public void startArray() throws IOException { }
+
+        public void endArray() throws IOException { }
+
+        public void writeNode(Node node) throws IOException { }
+
+        public void writeRelationship(Relationship relationship) throws IOException { }
+
+        public void writePath(Path path) throws IOException { }
+
+        public void close() throws IOException { }
     }
 
     class JsonWriter implements JsonResultWriter {
         protected OutputStream output;
-        private boolean pretty;
+        protected final JsonGenerator g;
 
-        JsonWriter(OutputStream output) {
+        JsonWriter(OutputStream output) throws IOException {
             this.output = output;
+            g = jsonFactory.createJsonGenerator(this.output);
+        }
+
+        public void close() throws IOException {
+            g.flush();
+            g.close();
+        }
+
+        @Override
+        public void startArray() throws IOException {
+            g.writeStartArray();
+        }
+
+        @Override
+        public void endArray() throws IOException {
+            g.writeEndArray();
+            g.flush();
         }
 
         @Override
         public JsonResultWriter usePrettyPrinter() {
-            this.pretty=true;
+            g.useDefaultPrettyPrinter();
             return this;
         }
 
-        public void toJson(ExecutionResult result, long start) throws IOException {
-            JsonGenerator g = createGenerator();
+        public void writeResult(ExecutionResult result, long start) throws IOException {
             g.writeStartObject();
             final List<String> columns = result.columns();
-            writeColumns(g, columns);
-            final int count = writeRows(result, g, columns);
-            writeCount(g, count);
-            writeTime(g, start);
+            writeColumns(columns);
+            final int count = writeRows(result, columns);
+            writeCount(count);
+            writeTime(start);
             g.writeEndObject();
-            g.close();
         }
 
-        protected JsonGenerator createGenerator() throws IOException {
-            JsonGenerator g = jsonFactory.createJsonGenerator(output);
-            if (pretty) {
-                g.useDefaultPrettyPrinter();
-            }
-            return g;
-        }
-
-        protected void writeTime(JsonGenerator g, long start) throws IOException {
+        protected void writeTime(long start) throws IOException {
             g.writeNumberField("time", System.currentTimeMillis() - start);
         }
 
-        protected void writeCount(JsonGenerator g, int count) throws IOException {
+        protected void writeCount(int count) throws IOException {
             g.writeNumberField("count", count);
         }
 
-        protected int writeRows(ExecutionResult result, JsonGenerator g, List<String> columns) throws IOException {
+        protected int writeRows(ExecutionResult result, List<String> columns) throws IOException {
             g.writeArrayFieldStart("rows");
             int count = 0;
             for (Map<String, Object> row : result) {
@@ -82,7 +108,7 @@ public class JsonResultWriters {
                     final Object value = row.get(column);
                     g.writeStartObject();
                     g.writeFieldName(type(value));
-                    writeValue(g, value);
+                    writeValue(value);
                     g.writeEndObject();
                 }
                 g.writeEndArray();
@@ -91,7 +117,7 @@ public class JsonResultWriters {
             return count;
         }
 
-        protected void writeColumns(JsonGenerator g, List<String> columns) throws IOException {
+        protected void writeColumns(List<String> columns) throws IOException {
             g.writeArrayFieldStart("columns");
             for (String column : columns) {
                 g.writeString(column);
@@ -113,82 +139,82 @@ public class JsonResultWriters {
        [{value:1,type:int},{value:"blub",type:"String"}]
         */
 
-        protected void writeValue(JsonGenerator g, Object value) throws IOException {
+        protected void writeValue(Object value) throws IOException {
             if (value instanceof Node) {
-                writeNode(g, (Node) value);
+                writeNode((Node) value);
                 return;
             }
             if (value instanceof Relationship) {
-                writeRelationship(g, (Relationship) value);
+                writeRelationship((Relationship) value);
                 return;
             }
             if (value instanceof Path) {
-                writePath(g, (Path) value);
+                writePath((Path) value);
                 return;
             }
             if (value instanceof Iterable) {
-                writeIterable(g, (Iterable) value);
+                writeIterable((Iterable) value);
                 return;
             }
             g.writeObject(value);
         }
 
-        protected void writeIterable(JsonGenerator g, Iterable values) throws IOException {
+        protected void writeIterable(Iterable values) throws IOException {
             g.writeStartArray();
             for (Object value : values) {
-                writeValue(g, value);
+                writeValue(value);
             }
             g.writeEndArray();
         }
 
-        protected void writeRelationship(JsonGenerator g, Relationship relationship) throws IOException {
+        public void writeRelationship(Relationship relationship) throws IOException {
             g.writeStartObject();
-            writeId(g, relationship);
-            writeRef(g, "start", relationship.getStartNode());
-            writeRef(g, "end", relationship.getEndNode());
+            writeId(relationship);
+            writeRef("start", relationship.getStartNode());
+            writeRef("end", relationship.getEndNode());
             g.writeStringField("type", relationship.getType().name());
-            writePropertyContainer(g, relationship);
+            writePropertyContainer(relationship);
             g.writeEndObject();
         }
 
-        protected void writeId(JsonGenerator g, Relationship relationship) throws IOException {
-            writeRef(g, "id", relationship);
+        protected void writeId(Relationship relationship) throws IOException {
+            writeRef("id", relationship);
         }
 
-        protected void writeNode(JsonGenerator g, Node node) throws IOException {
+        public void writeNode(Node node) throws IOException {
             g.writeStartObject();
-            writeId(g, node);
-            writePropertyContainer(g, node);
+            writeId(node);
+            writePropertyContainer(node);
             g.writeEndObject();
         }
 
-        protected void writeId(JsonGenerator g, Node node) throws IOException {
-            writeRef(g, "id", node);
+        protected void writeId(Node node) throws IOException {
+            writeRef("id", node);
         }
 
-        protected void writePath(JsonGenerator g, Path path) throws IOException {
+        public void writePath(Path path) throws IOException {
             g.writeStartObject();
             g.writeNumberField("length", path.length());
             g.writeFieldName("start");
-            writeNode(g, path.startNode());
+            writeNode(path.startNode());
             g.writeFieldName("end");
-            writeNode(g, path.endNode());
+            writeNode(path.endNode());
             g.writeFieldName("last_rel");
-            writeRelationship(g, path.lastRelationship());
+            writeRelationship(path.lastRelationship());
             g.writeArrayFieldStart("nodes");
             for (Node node : path.nodes()) {
-                writeNode(g, node);
+                writeNode(node);
             }
             g.writeEndArray();
             g.writeArrayFieldStart("relationships");
             for (Relationship relationship : path.relationships()) {
-                writeRelationship(g, relationship);
+                writeRelationship(relationship);
             }
             g.writeEndArray();
             g.writeEndObject();
         }
 
-        protected void writePropertyContainer(JsonGenerator g, PropertyContainer node) throws IOException {
+        protected void writePropertyContainer(PropertyContainer node) throws IOException {
             final Iterator<String> propertyKeys = node.getPropertyKeys().iterator();
             if (!propertyKeys.hasNext()) return;
             g.writeFieldName("data");
@@ -200,11 +226,11 @@ public class JsonResultWriters {
             g.writeEndObject();
         }
 
-        protected  void writeRef(JsonGenerator g, String fieldName, Node node) throws IOException {
+        protected  void writeRef(String fieldName, Node node) throws IOException {
             g.writeNumberField(fieldName, node.getId());
         }
 
-        protected  void writeRef(JsonGenerator g, String fieldName, Relationship relationship) throws IOException {
+        protected  void writeRef(String fieldName, Relationship relationship) throws IOException {
             g.writeNumberField(fieldName, relationship.getId());
         }
     }
@@ -212,19 +238,19 @@ public class JsonResultWriters {
     class JsonCompatWriter extends JsonWriter {
         protected final String uri;
 
-        JsonCompatWriter(OutputStream output, String uri) {
+        JsonCompatWriter(OutputStream output, String uri) throws IOException {
             super(output);
             this.uri = uri.endsWith("/") ? uri : uri + "/";
         }
 
-        protected int writeRows(ExecutionResult result, JsonGenerator g, List<String> columns) throws IOException {
+        protected int writeRows(ExecutionResult result, List<String> columns) throws IOException {
             g.writeArrayFieldStart("data");
             int count = 0;
             for (Map<String, Object> row : result) {
                 count++;
                 g.writeStartArray();
                 for (String column : columns) {
-                    writeValue(g, row.get(column));
+                    writeValue(row.get(column));
                 }
                 g.writeEndArray();
             }
@@ -233,25 +259,25 @@ public class JsonResultWriters {
         }
 
         @Override
-        protected void writeTime(JsonGenerator g, long start) throws IOException {
+        protected void writeTime(long start) throws IOException {
         }
 
         @Override
-        protected void writeCount(JsonGenerator g, int count) throws IOException {
+        protected void writeCount(int count) throws IOException {
         }
 
         @Override
-        protected void writeId(JsonGenerator g, Relationship relationship) throws IOException {
-            writeRef(g,"self",relationship);
+        protected void writeId(Relationship relationship) throws IOException {
+            writeRef("self",relationship);
         }
 
         @Override
-        protected void writeId(JsonGenerator g, Node node) throws IOException {
-            writeRef(g,"self",node);
+        protected void writeId(Node node) throws IOException {
+            writeRef("self",node);
         }
 
         @Override
-        protected void writeRef(JsonGenerator g, String fieldName, Node node) throws IOException {
+        protected void writeRef(String fieldName, Node node) throws IOException {
             g.writeStringField(fieldName, nodeUri(node));
         }
 
@@ -260,7 +286,7 @@ public class JsonResultWriters {
         }
 
         @Override
-        protected void writeRef(JsonGenerator g, String fieldName, Relationship relationship) throws IOException {
+        protected void writeRef(String fieldName, Relationship relationship) throws IOException {
             g.writeStringField(fieldName, relationshipUri(relationship));
         }
 
@@ -268,11 +294,11 @@ public class JsonResultWriters {
             return uri + "relationship/" + relationship.getId();
         }
 
-        protected void writePath(JsonGenerator g, Path path) throws IOException {
+        public void writePath(Path path) throws IOException {
             g.writeStartObject();
             g.writeNumberField("length", path.length());
-            writeRef(g, "start", path.startNode());
-            writeRef(g,"end",path.endNode());
+            writeRef("start", path.startNode());
+            writeRef("end",path.endNode());
 
             g.writeArrayFieldStart("nodes");
             for (Node node : path.nodes()) {
@@ -288,11 +314,14 @@ public class JsonResultWriters {
         }
     }
 
-    public JsonResultWriter writeCompatTo(OutputStream output, String uri) {
+    public JsonResultWriter writeCompatTo(OutputStream output, String uri) throws IOException {
         return new JsonCompatWriter(output, uri);
     }
 
-    public JsonResultWriter writeTo(OutputStream output) {
+    public JsonResultWriter writeTo(OutputStream output) throws IOException {
         return new JsonWriter(output);
+    }
+    public JsonResultWriter writeNothingTo(OutputStream output) throws IOException {
+        return new NullJsonResultWriter();
     }
 }

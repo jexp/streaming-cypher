@@ -69,7 +69,8 @@ public class JsonFormatTest {
         final ByteArrayOutputStream stream = new ByteArrayOutputStream();
         final JsonResultWriters writers = new JsonResultWriters();
         final JsonResultWriter writer = uri==null ? writers.writeTo(stream) : writers.writeCompatTo(stream, uri);
-        writer.toJson(data, 0L);
+        writer.writeResult(data, 0L);
+        writer.close();
         return new ObjectMapper().readValue(stream.toString(), Map.class);
     }
 }

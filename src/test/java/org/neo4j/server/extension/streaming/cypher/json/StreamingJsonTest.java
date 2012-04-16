@@ -11,7 +11,6 @@ import org.neo4j.server.extension.streaming.cypher.CypherResultReader;
 import org.neo4j.test.ImpermanentGraphDatabase;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
@@ -51,7 +50,9 @@ public class StreamingJsonTest {
                 try {
                     ExecutionResult result = new ExecutionResultStub(asList("node"), MapUtil.map("node", gdb.getReferenceNode()), MILLION);
                     final PipedOutputStream stream = new PipedOutputStream(inputStream);
-                    new JsonResultWriters().writeTo(stream).toJson(result, System.currentTimeMillis());
+                    final JsonResultWriter writer = new JsonResultWriters().writeTo(stream);
+                    writer.writeResult(result, System.currentTimeMillis());
+                    writer.close();
                 } catch (IOException ioe) {
                     throw new RuntimeException(ioe);
                 }
@@ -69,22 +70,9 @@ public class StreamingJsonTest {
         ExecutionResult result = new ExecutionResultStub(asList("node"), MapUtil.map("node", gdb.getReferenceNode()), MILLION);
         final CountingOutputStream stream = new CountingOutputStream();
         final long start = System.currentTimeMillis();
-        new JsonResultWriters().writeTo(stream).toJson(result, System.currentTimeMillis());
+        new JsonResultWriters().writeTo(stream).writeResult(result, System.currentTimeMillis());
         final long end = System.currentTimeMillis();
         System.out.println("Streaming " + stream.getCount() + " bytes took " + (end - start) + " ms.");
-    }
-
-    private static class CountingOutputStream extends OutputStream {
-        private int count;
-
-        @Override
-        public void write(int b) throws IOException {
-            count++;
-        }
-
-        public int getCount() {
-            return count;
-        }
     }
 
 }

@@ -1,4 +1,4 @@
-package org.neo4j.server;
+package org.neo4j.server.extension.streaming.cypher;
 
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientResponse;
@@ -10,7 +10,9 @@ import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.helpers.collection.MapUtil;
+import org.neo4j.server.configuration.ThirdPartyJaxRsPackage;
 import org.neo4j.server.extension.LocalTestServer;
+import org.neo4j.server.extension.streaming.cypher.CypherHttpService;
 
 import java.util.List;
 import java.util.Map;
@@ -25,7 +27,7 @@ import static org.junit.Assert.assertTrue;
  * @since 02.03.11
  */
 public class CypherHttpServiceTest {
-    private static LocalTestServer neoServer = new LocalTestServer();
+    private static LocalTestServer neoServer = new LocalTestServer("localhost",7470,new ThirdPartyJaxRsPackage(CypherHttpService.class.getPackage().getName(), "/streaming"));
 
     private static final String CONTEXT_PATH = "streaming/cypher";
     private static final int FEW_NODES = 10;

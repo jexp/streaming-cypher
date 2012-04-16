@@ -41,6 +41,7 @@ public class CypherHttpService {
                     try {
                         JsonResultWriter writer = writerFor(accept, output, neoServerBaseUri(uriInfo));
                         service.execute((String) params.get("query"), (Map<String, Object>) params.get("params"), writer);
+                        writer.close();
                     } catch (Exception e) {
                         throw new WebApplicationException(e);
                     }
@@ -54,10 +55,10 @@ public class CypherHttpService {
     }
 
     private URI neoServerBaseUri(UriInfo uriInfo) {
-        return uriInfo.getBaseUriBuilder().replacePath("/db/data/").build(null);
+        return uriInfo.getBaseUriBuilder().replacePath("/db/data/").build();
     }
 
-    private JsonResultWriter writerFor(String accept, OutputStream output, final URI uri) {
+    private JsonResultWriter writerFor(String accept, OutputStream output, final URI uri) throws IOException {
         final JsonResultWriter writer = accept.contains(";mode=compat") ? writers.writeCompatTo(output, uri.toString()) : writers.writeTo(output);
         if (accept.contains(";format=pretty")) writer.usePrettyPrinter();
         return writer;

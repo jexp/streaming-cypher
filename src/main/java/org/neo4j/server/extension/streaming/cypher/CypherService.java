@@ -23,6 +23,7 @@ class CypherService {
     void execute(String query, Map<String, Object> params, JsonResultWriter writer) throws IOException {
         long start = System.currentTimeMillis();
         final ExecutionResult result = engine.execute(query,params!=null ? params : Collections.<String,Object>emptyMap());
-        writer.toJson(result, start);
+        writer.writeResult(result, start);
+        writer.close();
     }
 }

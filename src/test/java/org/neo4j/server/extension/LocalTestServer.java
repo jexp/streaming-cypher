@@ -28,14 +28,12 @@ public class LocalTestServer {
     private NeoServerWithEmbeddedWebServer neoServer;
     private final int port;
     private final String hostname;
+    private final ThirdPartyJaxRsPackage jaxRsPackage;
 
-    public LocalTestServer() {
-        this("localhost", 7470);
-    }
-
-    public LocalTestServer(String hostname, int port) {
+    public LocalTestServer(String hostname, int port, final ThirdPartyJaxRsPackage jaxRsPackage) {
         this.port = port;
         this.hostname = hostname;
+        this.jaxRsPackage = jaxRsPackage;
     }
 
     public void start() {
@@ -67,7 +65,7 @@ public class LocalTestServer {
                 , new StartupHealthCheck(), new EmbeddedServerConfigurator(gdb) {
             @Override
             public Set<ThirdPartyJaxRsPackage> getThirdpartyJaxRsClasses() {
-                return Collections.singleton(new ThirdPartyJaxRsPackage(CypherHttpService.class.getPackage().getName(),"/streaming"));
+                return Collections.singleton(jaxRsPackage);
             }
         }, new Jetty6WebServer(), serverModules) {
             @Override

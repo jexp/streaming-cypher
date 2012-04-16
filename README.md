@@ -44,3 +44,44 @@ The format is for a query like:
 	"count":1,
     // full runtime including streaming all the results
 	"time":29}
+
+
+header params/websocket format (in protocol field)
+
+mode=none
+mode=compact
+mode=compat
+
+format=pretty
+
+== websocket protocol ==
+
+
+* array of commands
+* each command is: [opcode, selector, data]
+
+* opcodes: ADD|DELETE|UPDATE _NODES | ADD|DELETE|UPDATE _RELS | CYPHER
+
+* selector: id, [ids], ref, { index:key : value}, { index : query}, *
+  (selector after opcode or as start, end for relationships, traversals etc.)
+
+* ref is a lookup mechanism during command execution (in a context)
+
+* data is a map or a list of maps depending on command
+
+* streaming results
+
+    function init() { ws = new WebSocket("ws://localhost:8080/command");ws.onmessage = function(evt) { console.log(evt.data);}}
+    ws.send(JSON.stringify([["ADD_NODES",null,{data:{name:"foo"},ref:"foo", unique: { index: "test", key: "name", value:"foo"}}],["GET_NODES","*",null]]))
+
+=== commands ===
+
+* ADD_NODES : data is single or array of { data : {props}, ref : "ref", index : {index: key: value:} | [{}], unique: {index: key: value:}}
+
+* ADD_RELS : data is single or array of { data : {props}, ref : "ref",type:"type", start: selector, end : selector, index : {index: key: value: } | [{}], unique: {index: key: value:}}
+
+* DELETE_NODES : uses selector , if data is { force : true } it also deletes the relationships
+* DELETE_RELS : uses selector
+
+* UPDATE_NODES, UPDATE_RELS : uses selector, data is array or single of { data : {props}, ref : "ref", index : {index: [key:] [value:] [old:]}}, null values delete properties and index entries, old index value will be removed
+* CYPHER : data is { query : "query" , [params : { params}], useContext: true, mergeResult : true } useContext -> merges current context with params, merges cypher result with context
