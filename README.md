@@ -1,3 +1,5 @@
+## Streaming Cypher
+
 Just put the [jar](https://github.com/downloads/neo4j-contrib/streaming-cypher/streaming-cypher-extension-1.7.M03.jar) (streaming-cypher-extension-1.7.M03.jar) into neo4j-server/plugins and add this to the conf/neo4j-server.properties file
 
     org.neo4j.server.thirdparty_jaxrs_classes=org.neo4j.server.extension.streaming.cypher=/streaming
@@ -54,7 +56,7 @@ mode=compat
 
 format=pretty
 
-== websocket protocol ==
+## websocket protocol
 
 
 * array of commands
@@ -74,7 +76,7 @@ format=pretty
     function init() { ws = new WebSocket("ws://localhost:8080/command");ws.onmessage = function(evt) { console.log(evt.data);}}
     ws.send(JSON.stringify([["ADD_NODES",null,{data:{name:"foo"},ref:"foo", unique: { index: "test", key: "name", value:"foo"}}],["GET_NODES","*",null]]))
 
-=== commands ===
+### commands
 
 * ADD_NODES : data is single or array of { data : {props}, ref : "ref", index : {index: key: value:} | [{}], unique: {index: key: value:}}
 
